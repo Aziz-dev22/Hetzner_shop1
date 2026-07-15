@@ -201,6 +201,28 @@ class Database
 
         return $stmt->affected_rows;
 
+        CREATE TABLE IF NOT EXISTS payments(
+
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+order_id VARCHAR(100) UNIQUE,
+
+user_id BIGINT,
+
+amount DECIMAL(15,2),
+
+method VARCHAR(30),
+
+currency VARCHAR(20),
+
+txid VARCHAR(255) DEFAULT NULL,
+
+status VARCHAR(20) DEFAULT 'pending',
+
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+);
+        
     }
 
 
