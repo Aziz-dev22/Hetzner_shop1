@@ -139,3 +139,14 @@ define(
 date_default_timezone_set(
     'Asia/Tehran'
 );
+
+define(
+'USDT_BEP20_ADDRESS',
+$env['USDT_BEP20_ADDRESS'] ?? ''
+);
+
+
+define(
+'TRX_ADDRESS',
+$env['TRX_ADDRESS'] ?? ''
+);
