@@ -2,50 +2,175 @@
 
 set -e
 
-echo "=================================="
-echo "      Hetzner Shop Installer"
-echo "=================================="
+clear
 
-read -p "Bot Token: " BOT_TOKEN
-read -p "Admin ID: " ADMIN_ID
-read -p "Hetzner API Token: " HETZNER_TOKEN
+echo "====================================="
+echo "       Hetzner Shop Installer"
+echo "            Version 1.0"
+echo "====================================="
 
-read -p "Database Host [localhost]: " DB_HOST
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit
+fi
+
+
+echo "[1/6] Installing requirements..."
+
+
+apt update
+
+
+apt install -y \
+php \
+php-cli \
+php-curl \
+php-mysqli \
+php-mbstring \
+curl \
+git \
+unzip \
+composer
+
+
+
+echo ""
+echo "Enter Telegram Bot Token:"
+read BOT_TOKEN
+
+
+echo ""
+echo "Enter Telegram Admin ID:"
+read ADMIN_ID
+
+
+echo ""
+echo "Enter Hetzner API Token:"
+read HETZNER_TOKEN
+
+
+echo ""
+echo "Database Host [localhost]:"
+read DB_HOST
+
 DB_HOST=${DB_HOST:-localhost}
 
-read -p "Database Name: " DB_NAME
-read -p "Database User: " DB_USER
-read -s -p "Database Password: " DB_PASS
-echo
+
+echo ""
+echo "Database Name:"
+read DB_NAME
+
+
+echo ""
+echo "Database User:"
+read DB_USER
+
+
+echo ""
+echo "Database Password:"
+read DB_PASS
+
+
+echo ""
+echo "Website Domain:"
+read DOMAIN
+
+
 
 cat > .env <<EOF
+
 BOT_TOKEN=$BOT_TOKEN
+
 ADMIN_ID=$ADMIN_ID
+
 HETZNER_TOKEN=$HETZNER_TOKEN
 
+
 DB_HOST=$DB_HOST
+
 DB_NAME=$DB_NAME
+
 DB_USER=$DB_USER
+
 DB_PASS=$DB_PASS
+
+
+DOMAIN=$DOMAIN
+
+EURO_PRICE=75000
+
 EOF
 
-echo "Installing packages..."
 
-if command -v apt >/dev/null 2>&1; then
-    apt update
-    apt install -y php php-cli php-mysql php-curl php-mbstring unzip curl git
+
+echo "[2/6] Creating folders..."
+
+mkdir -p storage/logs
+
+mkdir -p storage/cache
+
+
+chmod -R 755 storage
+
+
+
+echo "[3/6] Installing composer packages..."
+
+
+if [ -f composer.json ]
+then
+    composer install --no-dev
 fi
 
-if [ -f composer.json ]; then
-    php -r "copy('https://getcomposer.org/installer','composer-setup.php');"
-    php composer-setup.php
-    php composer.phar install --no-dev
-    rm composer-setup.php
-fi
 
-chmod -R 755 .
 
-echo
-echo "Installation completed successfully."
-echo
-echo "Run your bot normally."
+echo "[4/6] Database setup..."
+
+
+
+php -r "
+
+\$mysqli = new mysqli(
+'$DB_HOST',
+'$DB_USER',
+'$DB_PASS',
+'$DB_NAME'
+);
+
+if(\$mysqli->connect_error){
+
+echo 'Database error';
+
+exit;
+
+}
+
+echo 'Database OK';
+
+"
+
+
+
+echo ""
+echo "[5/6] Setting webhook..."
+
+
+
+curl -s \
+"https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${DOMAIN}/bot.php"
+
+
+
+echo ""
+echo ""
+echo "[6/6] Completed!"
+
+echo ""
+echo "================================"
+echo " Installation Finished "
+echo "================================"
+
+echo ""
+echo "Bot Token saved."
+echo "Admin ID saved."
+echo "Configuration created."
