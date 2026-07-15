@@ -1,70 +1,81 @@
 <?php
 
-$database = [
+require_once __DIR__ . '/config.php';
 
-    'servername' => 'localhost',
-    'username'   => '',
-    'passwoed'   => '',
-    'dbname'     => '',
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-];
-$db = new mysqli($database['servername'], $database['username'], $database['passwoed'], $database['dbname']);
-if ($db->query("CREATE TABLE IF NOT EXISTS `users` (
-      `user_id` BIGINT PRIMARY KEY,
-      `step` VARCHAR(50) DEFAULT NULL,
-      `coin` VARCHAR(25) DEFAULT '0'
-    )CHARSET = utf8mb4 COLLATE utf8mb4_general_ci;") == false) {
-    echo "Error creating table - users: " . $db->error;
+try {
+
+    $db = new mysqli(
+        DB_HOST,
+        DB_USER,
+        DB_PASS,
+        DB_NAME
+    );
+
+    $db->set_charset("utf8mb4");
+
+} catch (Exception $e) {
+
+    die("Database Connection Failed.");
+
 }
 
-$euro = '75000';
-$api_key = ''; // api hetzner
+$db->query("
+CREATE TABLE IF NOT EXISTS users(
+    user_id BIGINT PRIMARY KEY,
+    step VARCHAR(50) DEFAULT NULL,
+    coin DECIMAL(15,2) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
 
-function update($table, $data, $where){
+$euro = EURO_PRICE;
+$api_key = HETZNER_TOKEN;
+
+function update($table,$data,$where){
+
     global $db;
 
-    $set = array();
-    foreach ($data as $key => $value) {
-        $set[] = "$key = '" . mysqli_real_escape_string($db, $value) . "'";
-    }
-    $set = implode(', ', $set);
+    $set=[];
 
-    $where_clause = '';
-    if (is_array($where)) {
-        $where_clause = ' WHERE ';
-        $where_parts = array();
-        foreach ($where as $key => $value) {
-            $where_parts[] = "$key = '" . mysqli_real_escape_string($db, $value) . "'";
-        }
-        $where_clause .= implode(' AND ', $where_parts);
-    } elseif (!empty($where)) {
-        $where_clause = ' WHERE ' . mysqli_real_escape_string($db, $where);
+    foreach($data as $key=>$value){
+
+        $set[]="$key='". $db->real_escape_string($value)."'";
+
     }
 
-    $stmt = mysqli_prepare($db, "UPDATE $table SET $set$where_clause");
-    mysqli_stmt_bind_param($stmt, $types, ...$params);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
+    $whereSql=[];
 
-    return mysqli_affected_rows($db);
+    foreach($where as $key=>$value){
+
+        $whereSql[]="$key='". $db->real_escape_string($value)."'";
+
+    }
+
+    $sql="UPDATE {$table} SET ".implode(',',$set)." WHERE ".implode(' AND ',$whereSql);
+
+    $db->query($sql);
+
+    return $db->affected_rows;
+
 }
 
-function insert($table, $data) {
+function insert($table,$data){
+
     global $db;
-    $insert_keys = array();
-    $insert_values = array();
 
-    foreach ($data as $key => $value) {
-        $insert_keys[] = mysqli_real_escape_string($db, $key);
-        $insert_values[] = mysqli_real_escape_string($db, $value);
-    }
+    $columns=array_keys($data);
 
-    $stmt = mysqli_prepare($db, "INSERT INTO $table (".implode(',', $insert_keys).") VALUES (" . implode(',', array_fill(0, count($data), '?')) . ")");
-    mysqli_stmt_bind_param($stmt, str_repeat('s', count($insert_values)), ...$insert_values);
+    $values=array_map(function($v) use($db){
 
-    if (mysqli_stmt_execute($stmt)) {
-        return mysqli_insert_id($db);
-    } else {
-        return false;
-    }
+        return "'".$db->real_escape_string($v)."'";
+
+    },array_values($data));
+
+    $sql="INSERT INTO {$table}(".implode(',',$columns).") VALUES(".implode(',',$values).")";
+
+    $db->query($sql);
+
+    return $db->insert_id;
+
 }
